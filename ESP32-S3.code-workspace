@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "esp bluetooth test",
+			"path": "Bluetooth/esp bluetooth test"
+		}
+	],
+	"settings": {}
+}
