@@ -1,3 +1,6 @@
+//$ 4/JUNE/2023 3:26 PM
+//% code to open run -> cmd -> startup folder
+// #..............................................
 #include "USB.h"
 #include "USBHIDKeyboard.h"
 #include <WiFi.h>
