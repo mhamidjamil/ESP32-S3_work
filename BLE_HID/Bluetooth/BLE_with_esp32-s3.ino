@@ -1,3 +1,6 @@
+//$ 4/JUNE/2023 3:25 PM
+//% code to perform specific actions on BLE input
+// #.....................................................
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>

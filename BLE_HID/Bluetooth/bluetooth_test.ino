@@ -1,9 +1,10 @@
 //$ 1:41 AM 6/JUNE/2023
+//% default code just show the input from android
+// #.....................................................
 // First successful test of BLE communication
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-
 
 BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
