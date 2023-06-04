@@ -1,5 +1,8 @@
 //$ 4/JUNE/2023 3:25 PM
 //% code to perform specific actions on BLE input
+
+//* code can now receive and send data to BLE device
+
 // #.....................................................
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -24,8 +27,12 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
     if (value.length() > 0) {
       receivedData = value;
       Serial.print("Received from BLE: ");
-      //   Serial.println(receivedData.c_str());
+      Serial.println(receivedData.c_str());
       inputManager(String(receivedData.c_str()));
+
+      // Print the received data back to the BLE connection
+      pCharacteristic->setValue("BLE: " + receivedData);
+      pCharacteristic->notify();
     }
   }
 };
@@ -73,7 +80,9 @@ void loop() {
 void inputManager(String input) {
   if (input == "test") {
     Serial.println("defined word: test");
+  } else if (input.indexOf("#run") != -1) {
+    Serial.println("HID function will be call here");
   } else {
-    Serial.println("undefined word: " + input);
+    Serial.println("undefined word : " + input);
   }
 }
