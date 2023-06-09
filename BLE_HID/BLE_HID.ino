@@ -1,7 +1,10 @@
-//$ 4/JUNE/2023 3:25 PM
-//% code to perform specific actions on BLE input
+//$ 9/JUNE/2023 11:32 PM
 
-//* code can now receive and send data to BLE device
+//% TODO: cade can loop a specific command action and can take it from BLE or
+//% via wifi
+
+// # last task done:
+//` Code can execute command via CMD and run a program via BLE input
 
 // #.....................................................
 #include <BLEDevice.h>
