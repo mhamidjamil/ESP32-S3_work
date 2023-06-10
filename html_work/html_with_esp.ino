@@ -1,8 +1,5 @@
 #include <WebServer.h>
 #include <WiFi.h>
-
-// Replace with your network credentials
-// WIFI:T:WPA;P:Archer@73_102#;S:Archer 73;H:false;
 const char *ssid = "Archer 73";
 const char *password = "Archer@73_102#";
 
