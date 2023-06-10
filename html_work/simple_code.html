@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <form method="POST" action="/execute">
+        <div id="fields"></div>
+        <button type="button" onclick="addField()">Add Input Field</button>
+        <button type="submit">Execute</button>
+    </form>
+    <script>
+        var fieldCount = 1;
+        function addField() {
+            var fieldsDiv = document.getElementById("fields");
+            var newField = document.createElement("div");
+            newField.innerHTML =
+                'Command: <input type="text" name="command[]"> Delay: <input type="text" name="delay[]">';
+            fieldsDiv.appendChild(newField);
+            fieldCount++;
+        }
+    </script>
+</body>
+
+</html>
