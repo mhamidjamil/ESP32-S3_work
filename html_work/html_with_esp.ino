@@ -45,6 +45,7 @@ void handleCommand() {
   }
   // Execute command with inputs and delays
   // ...
+  Serial.println("=====================================");
   Serial.println("Command: " + cmd);
   Serial.println("Inputs: " + inputs);
   Serial.println("Delays: " + delays);
