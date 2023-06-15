@@ -5,7 +5,7 @@
 //! BLE work is still in pending state from BLE branch. we can't send a response
 //! to BLE connected device
 
-//* HTML part ..................... +:
+//+ HTML part ..................... +:
 #include <WebServer.h>
 #include <WiFi.h>
 const char *ssid = "Archer 73";
@@ -229,21 +229,33 @@ void runCommand(String command) {
   Keyboard.release(KEY_RETURN);
   delay(300);
 }
-void cmdCommand(String command) {
-  // TODO: will have to change according to new requirements
+void CMD() { // will open cmd
   Keyboard.press(KEY_LEFT_GUI);
   Keyboard.press('r');
   Keyboard.releaseAll();
   delay(700);
   Keyboard.print("cmd");
   delay(300);
-  Keyboard.press(KEY_RETURN);
-  delay(100);
-  Keyboard.release(KEY_RETURN);
-  delay(500);
-  Keyboard.print(command);
+  ENTER();
   delay(300);
+}
+void cmdCommand(String command) {
+  CMD();
+  enter_command(command, 300);
+}
+void cmdCommand(String command, int DELAY) {
+  CMD();
+  enter_command(command, DELAY);
+}
+void enter_command(String command, int DELAY) {
+  write_command(command);
+  ENTER();
+  delay(DELAY);
+}
+void write_command(String command) { Keyboard.print(command); }
+void ENTER() {
   Keyboard.press(KEY_RETURN);
   delay(100);
   Keyboard.release(KEY_RETURN);
+  delay(100);
 }
