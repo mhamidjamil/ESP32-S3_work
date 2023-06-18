@@ -224,10 +224,7 @@ void runCommand(String command) {
   delay(700);
   Keyboard.print(command);
   delay(300);
-  Keyboard.press(KEY_RETURN);
-  delay(100);
-  Keyboard.release(KEY_RETURN);
-  delay(300);
+  ENTER();
 }
 void CMD() { // will open cmd
   Keyboard.press(KEY_LEFT_GUI);
