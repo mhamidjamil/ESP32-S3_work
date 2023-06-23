@@ -3,7 +3,6 @@
 #include <DHT.h>
 #include <LiquidCrystal.h>
 
-
 // LCD display pins
 const int rs = 38;
 const int en = 39;
@@ -11,6 +10,7 @@ const int d4 = 40;
 const int d5 = 41;
 const int d6 = 42;
 const int d7 = 2;
+const int LED = 19;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 // Initialize the DHT11 sensor
@@ -18,11 +18,14 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 DHT dht(DHTPIN, DHT11);
 
 void setup() {
+  Serial.begin(115200);
+  Serial.println("\nTest msg:");
+
   lcd.begin(16, 2); // Initialize the LCD display
   lcd.print("ESP32-S3");
   lcd.setCursor(0, 1);
   lcd.print("LCD & DHT11");
-
+  pinMode(LED, OUTPUT);
   dht.begin(); // Initialize the DHT11 sensor
 }
 
@@ -41,5 +44,9 @@ void loop() {
   lcd.print(humidity);
   lcd.print(" %");
 
-  delay(2000); // Delay between readings
+  digitalWrite(LED, HIGH);
+  delay(1000); // Delay between readings
+
+  digitalWrite(LED, LOW);
+  delay(1000);
 }
