@@ -53,7 +53,6 @@ void setup() {
   ThingSpeak.begin(client); // Initialize ThingSpeak
   int randomValue = random(10, 31);
   ThingSpeak.setField(4, randomValue);
-  line_1.setCharAt(14, '#');
 }
 
 void loop() {
@@ -73,13 +72,13 @@ void loop() {
   char temperatureStr[5];
   dtostrf(temperature, 4, 1, temperatureStr);
 
-  line_1 = line_1.substring(0, 6) + String(temperatureStr) +
-           line_1.substring(10, 15);
+  line_1 =
+      line_1.substring(0, 6) + String(temperatureStr) + line_1.substring(10,15);
 
   line_2 = "Hu: " + String(humidity) + " %";
   line_2 = line_2 + " /" + get_time();
   lcd_print();
-  if (((millis() / 1000) - previousUpdateTime) >= updateInterval) {
+  if ((millis() / 1000) - previousUpdateTime >= updateInterval) {
     previousUpdateTime = (millis() / 1000);
     updateThingSpeak(temperature, humidity);
   }

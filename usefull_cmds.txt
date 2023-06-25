@@ -1,5 +1,0 @@
-cd C:\Users\hamid\esp\esp-idf
-.\export.bat
-
-idf.py -D IDF_TARGET=esp32s3 build
-idf.py -p COM15 -D IDF_TARGET=esp32s3 flash monitor

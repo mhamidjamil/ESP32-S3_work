@@ -1,0 +1,22 @@
+cd C:\Users\hamid\esp\esp-idf
+.\export.bat
+
+idf.py -D IDF_TARGET=esp32s3 build
+idf.py -p COM15 -D IDF_TARGET=esp32s3 flash monitor
+
+
+
+unsigned long startTime = millis();
+unsigned long timeoutDuration = 15000; // 15 seconds timeout
+
+while (WiFi.status() != WL_CONNECTED) {
+  if (millis() - startTime >= timeoutDuration) {
+    Serial.println("Timeout: Unable to connect to WiFi");
+    break;
+  }
+  delay(1000);
+  Serial.println("Connecting to WiFi...");
+}
+
+
+
