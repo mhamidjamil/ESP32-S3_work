@@ -34,10 +34,11 @@ unsigned int last_update = 0; // in seconds
 WiFiClient client;
 
 #define LCD_COLUMNS 16
+String END_VALUES = "  ";
 String line_1 = "Temp: 00.0 C";
 String line_2 = "                ";
 
-void WifiCheck();
+void connect_wifi();
 void lcd_print();
 
 void setup() {
@@ -48,11 +49,12 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("LCD & DHT11");
   dht.begin(); // Initialize the DHT11 sensor
-  WifiCheck();
+  connect_wifi();
   pinMode(LED, OUTPUT);
   ThingSpeak.begin(client); // Initialize ThingSpeak
   int randomValue = random(10, 31);
   ThingSpeak.setField(4, randomValue);
+  END_VALUES.setCharAt(1, '#');
 }
 
 void loop() {
@@ -72,13 +74,11 @@ void loop() {
   char temperatureStr[5];
   dtostrf(temperature, 4, 1, temperatureStr);
 
-  line_1 =
-      line_1.substring(0, 6) + String(temperatureStr) + line_1.substring(10,15);
+  line_1 = line_1.substring(0, 6) + String(temperatureStr) + " C  " + END_VALUES;
 
-  line_2 = "Hu: " + String(humidity) + " %";
-  line_2 = line_2 + " /" + get_time();
+  line_2 = "Hu: " + String(humidity) + " % /" + get_time();
   lcd_print();
-  if ((millis() / 1000) - previousUpdateTime >= updateInterval) {
+  if (((millis() / 1000) - previousUpdateTime) >= updateInterval) {
     previousUpdateTime = (millis() / 1000);
     updateThingSpeak(temperature, humidity);
   }
@@ -103,15 +103,16 @@ void updateThingSpeak(float temperature, int humidity) {
 void SUCCESS_MSG() {
   // set curser to first row, first last column and print "tick symbol"
   digitalWrite(LED, HIGH);
-  line_1.setCharAt(14, '+');
+  END_VALUES.setCharAt(1, '+');
   last_update = (millis() / 1000);
 }
 void ERROR_MSG() {
   // set curser to first row, first last column and print "tick symbol"
   digitalWrite(LED, LOW);
-  line_1.setCharAt(14, '-');
+  END_VALUES.setCharAt(1, '-');
+  connect_wifi();
 }
-void WifiCheck() {
+void connect_wifi() {
   WiFi.begin(ssid, password); // Connect to Wi-Fi
   int i = 0;
   while (!wifi_connected()) {
@@ -121,17 +122,17 @@ void WifiCheck() {
     }
     delay(500);
     i++;
-    line_1.setCharAt(15, '?');
+    END_VALUES.setCharAt(0, '?');
     lcd_print();
     delay(500);
-    line_1.setCharAt(15, ' ');
+    END_VALUES.setCharAt(0, ' ');
   }
   Serial.println("Wi-Fi connected successfully");
   if (wifi_connected()) {
-    line_1.setCharAt(15, '*');
+    END_VALUES.setCharAt(0, '*');
     lcd_print();
   } else {
-    line_1.setCharAt(15, '!');
+    END_VALUES.setCharAt(0, '!');
     lcd_print();
   }
 }
@@ -153,10 +154,10 @@ String get_time() {
   if (sec < 60) {
     return (String(sec) + " s");
   } else if ((sec >= 60) && (sec < 3600)) {
-    return (String(sec / 60) + "." + String(sec % 60) + " m");
+    return (String(sec / 60) + "m" + String(sec % 60) + "s");
   } else {
-    Serial.println("Issue spoted sec value: " + String(sec));
-    WifiCheck();
+    Serial.println("Issue spotted sec value: " + String(sec));
+    connect_wifi();
     return String(-1);
   }
   return "X";
