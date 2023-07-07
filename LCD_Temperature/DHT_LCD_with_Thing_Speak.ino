@@ -1,7 +1,6 @@
 //$ 25/JUNE/2023
 //~ Version 1.0.0
-//` Working:
-//` When temperature or humidity changes data will be updated on thingSpeak.
+// TODO: data will update on thing speak when it changes.
 
 #include <DHT.h>
 #include <LiquidCrystal.h>

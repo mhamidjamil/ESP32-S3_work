@@ -32,6 +32,8 @@ void handleRoot() {
 }
 
 void handleCommand() {
+  // TODO: Execute command as they are mentioned in the web portal in there
+  // pattern
   String cmd = server.arg("cmd");
   String inputs = "";
   String delays = "";

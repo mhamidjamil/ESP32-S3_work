@@ -5,6 +5,8 @@
 
 // # last task done:
 //` Code can execute command via CMD and run a program via BLE input
+// BLE input should sync with web portal input and web portal can execute
+// multiple commands
 
 // #.....................................................
 #include <BLEDevice.h>
