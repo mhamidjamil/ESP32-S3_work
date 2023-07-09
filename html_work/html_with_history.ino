@@ -46,6 +46,7 @@ void handleCommand() {
     }
   }
   // Save command and input values to SPIFFS
+  // FIXME: history is not working properly
   File file = SPIFFS.open("/history.txt", "a");
   if (file) {
     file.print(cmd);
@@ -59,6 +60,7 @@ void handleCommand() {
   Serial.println("Command: " + cmd);
   Serial.println("Inputs: " + inputs);
   Serial.println("Delays: " + delays);
+  // TODO: here we get the required data with there delay time.
   server.send(200, "text/plain", "Command executed");
 }
 
