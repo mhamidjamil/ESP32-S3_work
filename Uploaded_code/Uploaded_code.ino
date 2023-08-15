@@ -1,22 +1,18 @@
-//$ 25/JUNE/2023
-
-//` Working:
-//` When temperature or humidity changes data will be updated on thingSpeak.
+//$ 11/JULY/2023 10:50 PM
+//~ Version 2.0.0
+//! # symbol not update when wifi connection re established.
 
 #include <DHT.h>
-#include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
 #include <ThingSpeak.h>
 #include <WiFi.h>
+#include <Wire.h>
 #include <random>
-// LCD display pins
-const int rs = 38;
-const int en = 39;
-const int d4 = 40;
-const int d5 = 41;
-const int d6 = 42;
-const int d7 = 2;
-const int LED = 19;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+#define LCD_ADDRESS 0x27
+#define LCD_COLUMNS 16
+#define LCD_ROWS 2
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 
 // Initialize the DHT11 sensor
 #define DHTPIN 16 // Change the pin if necessary
@@ -33,27 +29,29 @@ unsigned long previousUpdateTime = 0;
 unsigned int last_update = 0; // in seconds
 WiFiClient client;
 
-#define LCD_COLUMNS 16
 String END_VALUES = "  ";
 String line_1 = "Temp: 00.0 C";
 String line_2 = "                ";
 
 void connect_wifi();
 void lcd_print();
-
+const int LED = 20;
 void setup() {
+  // Initialize the I2C interface with your desired SDA and SCL pins
+  Wire.begin(21, 19);
+
+  // Initialize the LCD display
+  lcd.begin(LCD_COLUMNS, LCD_ROWS);
+
+  // Turn on the backlight
+  lcd.setBacklight(HIGH);
   Serial.begin(115200);
-  Serial.println("\nTest msg");
-  lcd.begin(16, 2); // Initialize the LCD display
-  lcd.print("ESP32-S3");
-  lcd.setCursor(0, 1);
-  lcd.print("LCD & DHT11");
+  Serial.println("\nRandom number: " + String(random(10, 31)));
   dht.begin(); // Initialize the DHT11 sensor
   connect_wifi();
   pinMode(LED, OUTPUT);
   ThingSpeak.begin(client); // Initialize ThingSpeak
-  int randomValue = random(10, 31);
-  ThingSpeak.setField(4, randomValue);
+  ThingSpeak.setField(4, random(10, 31));
   END_VALUES.setCharAt(1, '#');
 }
 
@@ -74,7 +72,8 @@ void loop() {
   char temperatureStr[5];
   dtostrf(temperature, 4, 1, temperatureStr);
 
-  line_1 = line_1.substring(0, 6) + String(temperatureStr) + " C  " + END_VALUES;
+  line_1 =
+      line_1.substring(0, 6) + String(temperatureStr) + " C  " + END_VALUES;
 
   line_2 = "Hu: " + String(humidity) + " % /" + get_time();
   lcd_print();
