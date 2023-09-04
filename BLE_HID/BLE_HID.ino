@@ -1,4 +1,4 @@
-//$ 9/JUNE/2023 11:32 PM
+//$ 5/SEP/2023 12:35 AM
 
 //% TODO: cade can loop a specific command action and can take it from BLE or
 //% via wifi
@@ -19,9 +19,14 @@
 #include <WiFi.h>
 #include <esp_now.h>
 String username = "hamid";
+String output = "";
 USBHIDKeyboard Keyboard;
 const int buttonPin = 0; // GPIO0 is the default boot button pin
 int previousButtonState = LOW;
+
+void println(String str);
+
+void print(String str);
 
 //+ ................................
 
@@ -37,25 +42,27 @@ class MyServerCallbacks : public BLEServerCallbacks {
   void onDisconnect(BLEServer *pServer) { deviceConnected = false; }
 };
 
-void inputManager(String input);
+void BLE_inputManager(String input);
 class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
     std::string value = pCharacteristic->getValue();
     if (value.length() > 0) {
       receivedData = value;
-      Serial.print("Received from BLE: ");
+      print("Received from BLE: ");
       Serial.println(receivedData.c_str());
-      inputManager(String(receivedData.c_str()));
+      BLE_inputManager(String(receivedData.c_str()));
 
       // Print the received data back to the BLE connection
+      receivedData = output.c_str();
       pCharacteristic->setValue("BLE: " + receivedData);
       pCharacteristic->notify();
     }
   }
 };
-void setup() {
-  Serial.begin(115200);
 
+void setup() {
+
+  Serial.begin(115200);
   //+.................................
   pinMode(buttonPin, INPUT_PULLDOWN);
   Keyboard.begin();
@@ -82,7 +89,7 @@ void setup() {
   pAdvertising->setMinPreferred(0x06); // sets the minimum advertising interval
   BLEDevice::startAdvertising();
 
-  Serial.println("Waiting for Bluetooth connection...");
+  println("Waiting for Bluetooth connection...");
 }
 
 void loop() {
@@ -117,21 +124,24 @@ void loop() {
   //+.................................
   if (deviceConnected) {
     if (!oldDeviceConnected) {
-      Serial.println("Connected to device");
+      println("Connected to device");
       oldDeviceConnected = true;
     }
   } else {
     if (oldDeviceConnected) {
-      Serial.println("Disconnected from device");
+      println("Disconnected from device");
+      pServer->startAdvertising(); // restart advertising
+      println("Restart advertising");
       oldDeviceConnected = false;
     }
   }
 
   delay(100);
 }
-void inputManager(String input) {
+
+void BLE_inputManager(String input) {
   if (input == "test") {
-    Serial.println("defined word: test");
+    println("defined word: test");
   } else if (input.startsWith("#run_")) {
     String command = input.substring(5);
     runCommand(command);
@@ -139,9 +149,11 @@ void inputManager(String input) {
     String command = input.substring(5);
     cmdCommand(command);
   } else {
-    Serial.println("undefined command : " + input);
+    println("Sending: " + input);
+    Keyboard.print("cmd");
   }
 }
+
 void runCommand(String command) {
   Keyboard.press(KEY_LEFT_GUI);
   Keyboard.press('r');
@@ -163,6 +175,7 @@ void runCommand(String command) {
   //   delay(100);
   //   Keyboard.release(KEY_RETURN);
 }
+
 void cmdCommand(String command) {
   Keyboard.press(KEY_LEFT_GUI);
   Keyboard.press('r');
@@ -179,4 +192,14 @@ void cmdCommand(String command) {
   Keyboard.press(KEY_RETURN);
   delay(100);
   Keyboard.release(KEY_RETURN);
+}
+
+void println(String str) {
+  Serial.println(str);
+  output = str;
+}
+
+void print(String str) {
+  Serial.print(str);
+  output = str;
 }
