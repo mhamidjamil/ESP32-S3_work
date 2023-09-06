@@ -3,6 +3,7 @@ cd C:\Users\hamid\esp\esp-idf
 
 idf.py -D IDF_TARGET=esp32s3 build
 idf.py -p COM15 -D IDF_TARGET=esp32s3 flash monitor
+idf.py -p COM15 -D IDF_TARGET=ESP32-S3 flash monitor
 
 
 
