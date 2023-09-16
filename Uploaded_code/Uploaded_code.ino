@@ -1,8 +1,8 @@
-//$ last work 16/Sep/23 [02:09 AM]
-// # version 3.1.1
-// # HTML HID and BLE all are working now
-// version note : 1st successful keyboard web page build
+//$ last work 16/Sep/23 [11:17 PM]
+// # version 3.1.2
+// # Almost all virtual keys are working now.
 
+#include "LittleFS.h"
 #include "arduino_secrets.h"
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -16,7 +16,6 @@
 #include <esp_now.h>
 String output = "";
 USBHIDKeyboard Keyboard;
-const int buttonPin = 0; // GPIO0 is the default boot button pin
 int previousButtonState = LOW;
 void println(String str);
 void print(String str);
@@ -28,10 +27,19 @@ WebServer server(80);
 
 void BLE_inputManager(String input);
 
+String Version = "Unknown";
+bool ctrlPressed = false;
+bool altPressed = false;
+bool shiftPressed = false;
+bool winPressed = false;
+bool capsLockPressed = false;
+bool left = false;
+
 void handleRoot() {
   String html = "<!DOCTYPE html><html><head><title>ESP32-S3 Virtual "
                 "Keyboard</title></head><body>";
   html += "<h1>Virtual Keyboard</h1>";
+  html += "<p>Version: " + Version + "</p>";
   html += "<div id='keyboard'>";
   // Create a set of buttons for each key you want on the virtual keyboard
   // You can customize the buttons as needed
@@ -105,7 +113,11 @@ void handleRoot() {
   html += "</div>";
   html += "<div>";
   // next line
-  html += "<button onclick='sendKey(\"shift\")'>Shift</button>";
+  if (shiftPressed)
+    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
+            "this.style.color=\"#FFFFFF\"; sendKey(\"shift\")'>Shift</button>";
+  else
+    html += "<button onclick='sendKey(\"shift\")'>Shift</button>";
   html += "<button onclick='sendKey(\"z\")'>z</button>";
   html += "<button onclick='sendKey(\"x\")'>x</button>";
   html += "<button onclick='sendKey(\"c\")'>c</button>";
@@ -119,16 +131,33 @@ void handleRoot() {
   html += "<button onclick='sendKey(\"upArrow\")'>Up</button>";
   html += "</div>";
   html += "<div>";
-  html += "<button onclick='sendKey(\"ctrl\")'>Ctrl</button>";
-  html += "<button onclick='sendKey(\"win\")'>Win</button>";
-  html += "<button onclick='sendKey(\"alt\")'>Alt</button>";
+  if (ctrlPressed)
+    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
+            "this.style.color=\"#FFFFFF\"; sendKey(\"ctrl\")'>Ctrl</button>";
+  else
+    html += "<button onclick='sendKey(\"ctrl\")'>Ctrl</button>";
+  if (winPressed)
+    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
+            "this.style.color=\"#FFFFFF\"; sendKey(\"win\")'>Win</button>";
+  else
+    html += "<button onclick='sendKey(\"win\")'>Win</button>";
+  if (altPressed)
+    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
+            "this.style.color=\"#FFFFFF\"; sendKey(\"alt\")'>Alt</button>";
+  else
+    html += "<button onclick='sendKey(\"alt\")'>Alt</button>";
   html += "<button onclick='sendKey(\" \")'></button>";
   html += "<button onclick='sendKey(\"spaceBar\")'>space</button>";
   html += "<button onclick='sendKey(\" \")'></button>";
   html += "<button onclick='sendKey(\" \")'></button>";
-  html += "<button onclick='sendKey(\"rightArrow\")'>Right</button>";
+  if (left)
+    html +=
+        "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
+        "this.style.color=\"#FFFFFF\"; sendKey(\"leftArrow\")'>Left</button>";
+  else
+    html += "<button onclick='sendKey(\"leftArrow\")'>Left</button>";
   html += "<button onclick='sendKey(\"downArrow\")'>Down</button>";
-  html += "<button onclick='sendKey(\"leftArrow\")'>Left</button>";
+  html += "<button onclick='sendKey(\"rightArrow\")'>Right</button>";
 
   // Add more buttons for other keys
   html += "</div>";
@@ -180,10 +209,9 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
 
 void setup() {
   Serial.begin(115200);
-
+  updateVersion();
   //~--------------------------------------------
   //+.................................
-  pinMode(buttonPin, INPUT_PULLDOWN);
   Keyboard.begin();
   USB.begin();
   //+.................................
@@ -225,35 +253,7 @@ void setup() {
   Serial.println("Web server started");
 }
 
-void loop() { //+.................................
-  int buttonState = digitalRead(buttonPin);
-
-  if (buttonState == HIGH && previousButtonState == LOW) {
-    Keyboard.press(KEY_LEFT_GUI);
-    Keyboard.press('r');
-    Keyboard.releaseAll();
-    delay(1000);
-    Keyboard.print("cmd");
-    delay(500);
-    Keyboard.press(KEY_RETURN);
-    delay(100);
-    Keyboard.release(KEY_RETURN);
-    delay(1000);
-    Keyboard.print(
-        "cd %userprofile%\\AppData\\Roaming\\Microsoft\\Windows\\Start "
-        "Menu\\Programs\\Startup");
-    delay(500);
-    Keyboard.press(KEY_RETURN);
-    delay(100);
-    Keyboard.release(KEY_RETURN);
-    delay(2000);
-  }
-  if (buttonState == LOW && previousButtonState == HIGH) {
-    Keyboard.release(97);
-    delay(50);
-  }
-  previousButtonState = buttonState;
-  //+.................................
+void loop() {
   if (deviceConnected) {
     if (!oldDeviceConnected) {
       println("Connected to device");
@@ -282,7 +282,7 @@ void BLE_inputManager(String input) {
     String command = input.substring(5);
     cmdCommand(command);
   } else {
-    println("in else part now");
+    println("Else part");
     if (input == "F1") {
       println("F1 key pressed");
       Keyboard.press(KEY_F1);   // Press F1 key
@@ -350,6 +350,7 @@ void BLE_inputManager(String input) {
       println("Left Arrow key pressed");
       Keyboard.press(KEY_LEFT_ARROW);   // Press Left Arrow key
       Keyboard.release(KEY_LEFT_ARROW); // Release Left Arrow key
+      left = !left;
     } else if (input == "home") {
       println("Home key pressed");
       Keyboard.press(KEY_HOME);   // Press Home key
@@ -392,24 +393,39 @@ void BLE_inputManager(String input) {
       Keyboard.release(' '); // Release Space key
     } else if (input == "capsLock") {
       println("Caps Lock key pressed");
-      Keyboard.press(KEY_CAPS_LOCK);   // Press Caps Lock key
-      Keyboard.release(KEY_CAPS_LOCK); // Release Caps Lock key
+      if (!capsLockPressed)
+        Keyboard.press(KEY_CAPS_LOCK); // Press Caps Lock key
+      else
+        Keyboard.release(KEY_CAPS_LOCK); // Release Caps Lock key
+      capsLockPressed = !capsLockPressed;
     } else if (input == "shift") {
       println("Shift key pressed");
-      Keyboard.press(KEY_LEFT_SHIFT);   // Press Shift key
-      Keyboard.release(KEY_LEFT_SHIFT); // Release Shift key
+      if (!shiftPressed)
+        Keyboard.press(KEY_LEFT_SHIFT); // Press Shift key
+      else
+        Keyboard.release(KEY_LEFT_SHIFT); // Release Shift key
+      shiftPressed = !shiftPressed;
     } else if (input == "ctrl") {
       println("Ctrl key pressed");
-      Keyboard.press(KEY_LEFT_CTRL);   // Press Ctrl key
-      Keyboard.release(KEY_LEFT_CTRL); // Release Ctrl key
+      if (!ctrlPressed)
+        Keyboard.press(KEY_LEFT_CTRL); // Press Ctrl key
+      else
+        Keyboard.release(KEY_LEFT_CTRL); // Release Ctrl key
+      ctrlPressed = !ctrlPressed;
     } else if (input == "alt") {
       println("Alt key pressed");
-      Keyboard.press(KEY_LEFT_ALT);   // Press Alt key
-      Keyboard.release(KEY_LEFT_ALT); // Release Alt key
+      if (!altPressed)
+        Keyboard.press(KEY_LEFT_ALT); // Press Alt key
+      else
+        Keyboard.release(KEY_LEFT_ALT); // Release Alt key
+      altPressed = !altPressed;
     } else if (input == "win") {
       println("Win key pressed");
-      Keyboard.press(KEY_LEFT_GUI);   // Press Win key
-      Keyboard.release(KEY_LEFT_GUI); // Release Win key
+      if (!winPressed)
+        Keyboard.press(KEY_LEFT_GUI); // Press Win key
+      else
+        Keyboard.release(KEY_LEFT_GUI); // Release Win key
+      winPressed = !winPressed;
     } else {
       println("Sending: " + input);
       Keyboard.print(input);
@@ -465,4 +481,34 @@ void println(String str) {
 void print(String str) {
   Serial.print(str);
   output = str;
+}
+
+void updateVersion() {
+  // Version = "3.1.2";
+  if (!LittleFS.begin()) {
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
+  File file = LittleFS.open("/test_example.txt");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+  String tempStr;
+  Serial.println("File Content:");
+  while (file.available()) {
+    tempStr += file.read();
+  }
+  Serial.println(tempStr);
+  Version = desiredLine(tempStr, "Version: ");
+  file.close();
+}
+
+String desiredLine(String str, String target) {
+  int index = str.indexOf(target);
+  int index2 = str.indexOf("\n", index);
+  String result = str.substring(index, index2);
+  println("Returning: " + result);
+  return result;
 }
