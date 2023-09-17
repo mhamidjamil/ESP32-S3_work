@@ -1,6 +1,6 @@
-//$ last work 17/Sep/23 [03:11 PM]
-// # version 3.1.3
-// # control buttons can stay in pressed mode.
+//$ last work 17/Sep/23 [02:20 PM]
+// # version 3.1.4
+// # Keyboard is ready for orange pi 5 plus, color buttons are working
 
 #include "LittleFS.h"
 #include "arduino_secrets.h"
@@ -95,7 +95,15 @@ void handleRoot() {
   html += "</div>";
   html += "<div>";
   // next line
-  html += "<button onclick='sendKey(\"capsLock\")'>Caps Lock</button>";
+  if (capsLockPressed)
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"#0074D9\" ? \"\" : \"#0074D9\"; "
+            "sendKey(\"capsLock\")'>Caps lock</button>";
+  else
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"\" ? \"#0074D9\" : \"\"; "
+            "sendKey(\"capsLock\")'>Caps Lock</button>";
+
   html += "<button onclick='sendKey(\"a\")'>a</button>";
   html += "<button onclick='sendKey(\"s\")'>s</button>";
   html += "<button onclick='sendKey(\"d\")'>d</button>";
@@ -114,10 +122,13 @@ void handleRoot() {
   html += "<div>";
   // next line
   if (shiftPressed)
-    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
-            "this.style.color=\"#FFFFFF\"; sendKey(\"shift\")'>Shift</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"#0074D9\" ? \"\" : \"#0074D9\"; "
+            "sendKey(\"shift\")'>Shift</button>";
   else
-    html += "<button onclick='sendKey(\"shift\")'>Shift</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"\" ? \"#0074D9\" : \"\"; "
+            "sendKey(\"shift\")'>Shift</button>";
   html += "<button onclick='sendKey(\"z\")'>z</button>";
   html += "<button onclick='sendKey(\"x\")'>x</button>";
   html += "<button onclick='sendKey(\"c\")'>c</button>";
@@ -132,30 +143,37 @@ void handleRoot() {
   html += "</div>";
   html += "<div>";
   if (ctrlPressed)
-    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
-            "this.style.color=\"#FFFFFF\"; sendKey(\"ctrl\")'>Ctrl</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"#0074D9\" ? \"\" : \"#0074D9\"; "
+            "sendKey(\"ctrl\")'>Ctrl</button>";
   else
-    html += "<button onclick='sendKey(\"ctrl\")'>Ctrl</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"\" ? \"#0074D9\" : \"\"; "
+            "sendKey(\"ctrl\")'>Ctrl</button>";
+
   if (winPressed)
-    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
-            "this.style.color=\"#FFFFFF\"; sendKey(\"win\")'>Win</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"#0074D9\" ? \"\" : \"#0074D9\"; "
+            "sendKey(\"win\")'>Win</button>";
   else
-    html += "<button onclick='sendKey(\"win\")'>Win</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"\" ? \"#0074D9\" : \"\"; "
+            "sendKey(\"win\")'>Win</button>";
+
   if (altPressed)
-    html += "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
-            "this.style.color=\"#FFFFFF\"; sendKey(\"alt\")'>Alt</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"#0074D9\" ? \"\" : \"#0074D9\"; "
+            "sendKey(\"alt\")'>Alt</button>";
   else
-    html += "<button onclick='sendKey(\"alt\")'>Alt</button>";
+    html += "<button onclick='this.style.backgroundColor = "
+            "this.style.backgroundColor === \"\" ? \"#0074D9\" : \"\"; "
+            "sendKey(\"alt\")'>Alt</button>";
+
   html += "<button onclick='sendKey(\" \")'></button>";
   html += "<button onclick='sendKey(\"spaceBar\")'>space</button>";
   html += "<button onclick='sendKey(\" \")'></button>";
   html += "<button onclick='sendKey(\" \")'></button>";
-  if (left)
-    html +=
-        "<button onclick='this.style.backgroundColor=\"#0074D9\"; "
-        "this.style.color=\"#FFFFFF\"; sendKey(\"leftArrow\")'>Left</button>";
-  else
-    html += "<button onclick='sendKey(\"leftArrow\")'>Left</button>";
+  html += "<button onclick='sendKey(\"leftArrow\")'>Left</button>";
   html += "<button onclick='sendKey(\"downArrow\")'>Down</button>";
   html += "<button onclick='sendKey(\"rightArrow\")'>Right</button>";
 
@@ -240,9 +258,16 @@ void setup() {
   //~--------------------------------------------
 
   WiFi.begin(ssid, password);
+  Serial.println("Connecting to WiFi...");
+  int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
+    Serial.println(".");
+    i++;
+    if (i > 10) {
+      Serial.println("Timeout!");
+      break;
+    }
   }
   Serial.println("Connected to WiFi");
 
@@ -485,30 +510,67 @@ void print(String str) {
 
 void updateVersion() {
   // Version = "3.1.2";
-  if (!LittleFS.begin()) {
-    Serial.println("An Error has occurred while mounting SPIFFS");
-    return;
+  if (!LittleFS.begin(true)) {
+    Serial.println("LittleFS mount failed. Formatting...");
+    if (LittleFS.format()) {
+      Serial.println("LittleFS format success.");
+    } else {
+      Serial.println("LittleFS format failed.");
+    }
+  } else {
+    Serial.println("LittleFS mounted successfully.");
   }
 
-  File file = LittleFS.open("/test_example.txt");
+  File file = LittleFS.open("/config.txt");
   if (!file) {
     Serial.println("Failed to open file for reading");
     return;
   }
-  String tempStr;
+  String tempStr = "Version 3.2.4.3";
   Serial.println("File Content:");
   while (file.available()) {
-    tempStr += file.read();
+    char character = file.read();
+    tempStr += character; // Append the character to the string
+    // Serial.write(character);
   }
-  Serial.write(tempStr.c_str());
-  Version = desiredLine(tempStr, "Version: ");
+  Serial.println(tempStr);
+  Version = fetchVersion(getCompleteString(tempStr, "Version"));
   file.close();
 }
 
-String desiredLine(String str, String target) {
-  int index = str.indexOf(target);
-  int index2 = str.indexOf("\n", index);
-  String result = str.substring(index, index2);
-  println("Returning: " + result);
-  return result;
+String getCompleteString(String str, String target) {
+  //" #setting <ultra sound alerts 0> <display 1>" , "ultra"
+  // return "ultra sound alerts 0"
+  String tempStr = "";
+  int i = str.indexOf(target);
+  if (i == -1) {
+    println("String is empty" + str);
+    return tempStr;
+  }
+  for (; i < str.length(); i++) {
+    if (!(str[i] == '\n' || str[i] == '\r'))
+      tempStr += str[i];
+    else {
+      //   println("Returning (complete string) 1: " + tempStr);
+      return tempStr;
+    }
+  }
+  //   println("Returning (complete string) 2: " + tempStr);
+  return tempStr;
+}
+
+String fetchVersion(String str) {
+  String number = "";
+  bool numberStart = false;
+  for (int i = 0; i < str.length(); i++) {
+    if ((str[i] >= '0' && str[i] <= '9') || str[i] == '.') {
+      number += str[i];
+      numberStart = true;
+    } else if (numberStart) {
+      println("Returning (fetched version ) " + number);
+      return number;
+    }
+  }
+  //   println("Returning (fetchNumber) 2: " + number);
+  return number;
 }
