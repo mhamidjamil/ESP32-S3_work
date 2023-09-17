@@ -1,12 +1,7 @@
-//$ 5/SEP/2023 12:35 AM
-
-//% TODO: cade can loop a specific command action and can take it from BLE or
-//% via wifi
+//$ 16/SEP/2023 12:35 AM
 
 // # last task done:
-//` Code can execute command via CMD and run a program via BLE input
-// BLE input should sync with web portal input and web portal can execute
-// multiple commands
+//`
 
 // #.....................................................
 #include <BLEDevice.h>
@@ -18,7 +13,6 @@
 #include "USBHIDKeyboard.h"
 #include <WiFi.h>
 #include <esp_now.h>
-String username = "hamid";
 String output = "";
 USBHIDKeyboard Keyboard;
 const int buttonPin = 0; // GPIO0 is the default boot button pin
@@ -150,7 +144,7 @@ void BLE_inputManager(String input) {
     cmdCommand(command);
   } else {
     println("Sending: " + input);
-    Keyboard.print("cmd");
+    Keyboard.print(input);
   }
 }
 
