@@ -23,7 +23,7 @@ void print(String str);
 const char *ssid = MY_SSID;
 const char *password = MY_PASSWORD;
 
-WebServer server(80);
+WebServer server(3345);
 
 void BLE_inputManager(String input);
 
@@ -534,7 +534,7 @@ void updateVersion() {
     // Serial.write(character);
   }
   Serial.println(tempStr);
-  Version = fetchVersion(getCompleteString(tempStr, "Version"));
+  Version = fetchValue(getCompleteString(tempStr, "Version"));
   file.close();
 }
 
@@ -559,7 +559,7 @@ String getCompleteString(String str, String target) {
   return tempStr;
 }
 
-String fetchVersion(String str) {
+String fetchValue(String str) {
   String number = "";
   bool numberStart = false;
   for (int i = 0; i < str.length(); i++) {
