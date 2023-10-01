@@ -1,6 +1,6 @@
-//$ last work 17/Sep/23 [03:11 PM]
-// # version 3.1.3
-// # control buttons can stay in pressed mode.
+//$ last work 17/Sep/23 [02:20 PM]
+// # version 3.1.4
+// # Keyboard is ready for orange pi 5 plus, color buttons are working
 
 #include "LittleFS.h"
 #include "arduino_secrets.h"
@@ -23,7 +23,7 @@ void print(String str);
 const char *ssid = MY_SSID;
 const char *password = MY_PASSWORD;
 
-WebServer server(80);
+WebServer server(3345);
 
 void BLE_inputManager(String input);
 
