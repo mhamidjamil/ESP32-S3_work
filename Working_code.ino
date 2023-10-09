@@ -1,6 +1,6 @@
-//$ last work 17/Sep/23 [02:20 PM]
-// # version 3.1.4
-// # Keyboard is ready for orange pi 5 plus, color buttons are working
+//$ last work 10/Oct/23 [02:20 PM]
+// # version 3.1.5
+// # User can now send complete string from browser version
 
 #include "LittleFS.h"
 #include "arduino_secrets.h"
@@ -14,7 +14,6 @@
 #include "USB.h"
 #include "USBHIDKeyboard.h"
 #include <esp_now.h>
-String output = "";
 USBHIDKeyboard Keyboard;
 int previousButtonState = LOW;
 void println(String str);
@@ -23,7 +22,7 @@ void print(String str);
 const char *ssid = MY_SSID;
 const char *password = MY_PASSWORD;
 
-WebServer server(3345);
+WebServer server(80);
 
 void BLE_inputManager(String input);
 
@@ -177,22 +176,38 @@ void handleRoot() {
   html += "<button onclick='sendKey(\"downArrow\")'>Down</button>";
   html += "<button onclick='sendKey(\"rightArrow\")'>Right</button>";
 
-  // Add more buttons for other keys
+  // Input field and send button
+  html += "<div>";
+  html += "<input type='text' id='inputData' placeholder='Enter text'>";
+  html += "<button onclick='sendInputData()'>Send</button>";
+  html += "</div>";
+
   html += "</div>";
   html += "</body>";
-  html +=
-      "<script>function sendKey(key) { fetch('/key?key=' + key); }</script>";
+  html += "<script>";
+  html += "function sendKey(key) { fetch('/key?key=' + key); }";
+  html += "function sendInputData() {";
+  html += "  var inputData = document.getElementById('inputData').value;";
+  html += "  console.log('Input Data: ' + inputData);"; // debugging
+  html += "  fetch('/sendData?data=' + inputData);";
+  html += "}";
+  html += "</script>";
+
   html += "</html>";
   server.send(200, "text/html", html);
 }
 
 void handleKey() {
   String key = server.arg("key");
-  // Process the received key (e.g., send it to your ESP32-S3 for keyboard
-  // input)
-  // ...
-  Serial.println("Received Key: " + key);
-  BLE_inputManager(key);
+  String input = server.arg("data");
+  if (input.length() > 0) {
+    println("Received String: " + input);
+    Keyboard.print(input);
+  } else {
+
+    Serial.println("Received Key: " + key);
+    BLE_inputManager(key);
+  }
   server.send(200, "text/plain", "Key received");
 }
 
@@ -201,6 +216,7 @@ BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 std::string receivedData = "";
+String BLE_Output = "";
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
@@ -214,11 +230,11 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
     if (value.length() > 0) {
       receivedData = value;
       print("Received from BLE: ");
-      Serial.println(receivedData.c_str());
+      println(receivedData.c_str());
       BLE_inputManager(String(receivedData.c_str()));
 
       // Print the received data back to the BLE connection
-      receivedData = output.c_str();
+      receivedData = BLE_Output.c_str();
       pCharacteristic->setValue("BLE: " + receivedData);
       pCharacteristic->notify();
     }
@@ -273,9 +289,11 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/key", HTTP_GET, handleKey);
+  server.on("/sendData", HTTP_GET, handleKey);
 
   server.begin();
-  Serial.println("Web server started");
+  Serial.print("Keyboard Ready! Use 'http://");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
@@ -292,8 +310,16 @@ void loop() {
       oldDeviceConnected = false;
     }
   }
-
-  delay(100);
+  if (Serial.available() > 0) {
+    String input = Serial.readString();
+    if (input.indexOf("ip") != -1 || input.indexOf("IP") != -1 ||
+        input.indexOf("Ip") != -1) {
+      Serial.print("Keyboard is at 'http://");
+      IPAddress ipv4 = WiFi.localIP();
+      String ip = ipv4.toString();
+      println(ip);
+    }
+  }
   server.handleClient();
 }
 
@@ -306,6 +332,12 @@ void BLE_inputManager(String input) {
   } else if (input.startsWith("#cmd_")) {
     String command = input.substring(5);
     cmdCommand(command);
+  } else if (input.indexOf("ip") != -1 || input.indexOf("IP") != -1 ||
+             input.indexOf("Ip") != -1) {
+    Serial.print("Keyboard is at 'http://");
+    IPAddress ipv4 = WiFi.localIP();
+    String ip = ipv4.toString();
+    println(ip);
   } else {
     println("Else part");
     if (input == "F1") {
@@ -500,12 +532,14 @@ void cmdCommand(String command) {
 
 void println(String str) {
   Serial.println(str);
-  output = str;
+  BLE_Output = str;
+  receivedData = BLE_Output.c_str();
 }
 
 void print(String str) {
   Serial.print(str);
-  output = str;
+  BLE_Output = str;
+  receivedData = BLE_Output.c_str();
 }
 
 void updateVersion() {
