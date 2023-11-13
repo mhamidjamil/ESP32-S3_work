@@ -1,14 +1,17 @@
-//$ last work 10/Oct/23 [02:20 PM]
-// # version 3.1.5
-// # User can now send complete string from browser version
+//$ last work 14/Nov/23 [12:22 AM]
+// # version 3.2.1
+// # Getting started with SPIFFS with custom library
+//
 
-#include "LittleFS.h"
 #include "arduino_secrets.h"
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <WebServer.h>
 #include <WiFi.h>
+
+#include "Cspiffs.h"
+Cspiffs cspi;
 
 //+ HID part ...................... :
 #include "USB.h"
@@ -243,7 +246,6 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
 
 void setup() {
   Serial.begin(115200);
-  updateVersion();
   //~--------------------------------------------
   //+.................................
   Keyboard.begin();
@@ -272,7 +274,7 @@ void setup() {
 
   println("Waiting for Bluetooth connection...");
   //~--------------------------------------------
-
+  Version = cspi.getFileVariableValue("Version");
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi...");
   int i = 0;
@@ -318,6 +320,8 @@ void loop() {
       IPAddress ipv4 = WiFi.localIP();
       String ip = ipv4.toString();
       println(ip);
+    } else {
+      input_manager(input);
     }
   }
   server.handleClient();
@@ -542,36 +546,6 @@ void print(String str) {
   receivedData = BLE_Output.c_str();
 }
 
-void updateVersion() {
-  // Version = "3.1.2";
-  if (!LittleFS.begin(true)) {
-    Serial.println("LittleFS mount failed. Formatting...");
-    if (LittleFS.format()) {
-      Serial.println("LittleFS format success.");
-    } else {
-      Serial.println("LittleFS format failed.");
-    }
-  } else {
-    Serial.println("LittleFS mounted successfully.");
-  }
-
-  File file = LittleFS.open("/config.txt");
-  if (!file) {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
-  String tempStr = "Version 3.2.4.3";
-  Serial.println("File Content:");
-  while (file.available()) {
-    char character = file.read();
-    tempStr += character; // Append the character to the string
-    // Serial.write(character);
-  }
-  Serial.println(tempStr);
-  Version = fetchValue(getCompleteString(tempStr, "Version"));
-  file.close();
-}
-
 String getCompleteString(String str, String target) {
   //" #setting <ultra sound alerts 0> <display 1>" , "ultra"
   // return "ultra sound alerts 0"
@@ -607,4 +581,33 @@ String fetchValue(String str) {
   }
   //   println("Returning (fetchNumber) 2: " + number);
   return number;
+}
+
+void input_manager(String command) {
+  println("Working on: " + command);
+  if (command.indexOf("value of:") != -1) {
+    String varName =
+        cspi.getVariableName(command.substring(command.indexOf(":")), ":");
+    String targetLine = cspi.getCompleteString(cspi.getSPIFFSData(), varName);
+    if (targetLine.indexOf(varName) == -1) {
+      println("Variable not found in file creating new one --force");
+      cspi.updateSPIFFS(varName, "0", true);
+    } else {
+      println("now trying to fetch data from line : " + targetLine);
+      String targetValue = targetLine.substring(varName.length(), -1);
+      // println("Trying to fetch data from : " + targetValue);
+      println("Value of : " + varName +
+              " is : " + cspi.fetchNumber(targetValue, '.'));
+    }
+    if (command.indexOf("to") != -1) {
+      String newValue = command.substring(command.indexOf("to") + 2, -1);
+      println("Updating value to : " + newValue);
+      cspi.updateSPIFFS(varName, newValue);
+    }
+    println("\t\t ###leaving else part #### \n");
+  } else if (command.indexOf("readSPIFFS") != -1) {
+    cspi.readSPIFFS();
+  } else {
+    println("Unknown command {" + command + "}");
+  }
 }

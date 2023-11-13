@@ -1,4 +1,4 @@
-//$ 23/JULY/2023 07:22 PM
+//$ 12/NOV/2023 04:08 PM
 //* Code to test the functionality of LCD using i2c protocol with ESP32-S3
 /*
   PIN
@@ -33,4 +33,6 @@ void setup() {
 void loop() {
   // No additional functionality in the loop
   lcd.print(String(random(99)) + ", ESP32-S3!");
+  delay(3000);
+  lcd.clear();
 }
