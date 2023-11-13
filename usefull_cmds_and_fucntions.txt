@@ -21,3 +21,10 @@ while (WiFi.status() != WL_CONNECTED) {
 
 
 
+IPAddress localIP = WiFi.localIP();
+
+// Convert the IPAddress to a string
+String ipString = localIP.toString();
+
+// Pass the string to your function
+yourFunction(ipString);
