@@ -1,6 +1,7 @@
-//$ last work 10/Oct/23 [02:20 PM]
-// # version 3.1.5
-// # User can now send complete string from browser version
+//$ last work 14/Nov/23 [12:22 AM]
+// # version 3.2.1
+// # Getting started with SPIFFS with custom library
+//
 
 #include "arduino_secrets.h"
 #include <BLEDevice.h>
@@ -10,7 +11,7 @@
 #include <WiFi.h>
 
 #include "Cspiffs.h"
-Cspiffs cspi();
+Cspiffs cspi;
 
 //+ HID part ...................... :
 #include "USB.h"
@@ -273,7 +274,7 @@ void setup() {
 
   println("Waiting for Bluetooth connection...");
   //~--------------------------------------------
-
+  Version = cspi.getFileVariableValue("Version");
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi...");
   int i = 0;
@@ -295,7 +296,6 @@ void setup() {
   server.begin();
   Serial.print("Keyboard Ready! Use 'http://");
   Serial.println(WiFi.localIP());
-  pinMode(BUILTIN_LED, OUTPUT);
 }
 
 void loop() {
@@ -585,10 +585,29 @@ String fetchValue(String str) {
 
 void input_manager(String command) {
   println("Working on: " + command);
-  if (command.indexOf("led") != -1) {
-    cspi.alterLed();
-    digitalWrite(BUILTIN_LED, cspi.led_state);
-    print("new led state: ");
-    cspi.led_state ? println("ON") : println("OFF");
+  if (command.indexOf("value of:") != -1) {
+    String varName =
+        cspi.getVariableName(command.substring(command.indexOf(":")), ":");
+    String targetLine = cspi.getCompleteString(cspi.getSPIFFSData(), varName);
+    if (targetLine.indexOf(varName) == -1) {
+      println("Variable not found in file creating new one --force");
+      cspi.updateSPIFFS(varName, "0", true);
+    } else {
+      println("now trying to fetch data from line : " + targetLine);
+      String targetValue = targetLine.substring(varName.length(), -1);
+      // println("Trying to fetch data from : " + targetValue);
+      println("Value of : " + varName +
+              " is : " + cspi.fetchNumber(targetValue, '.'));
+    }
+    if (command.indexOf("to") != -1) {
+      String newValue = command.substring(command.indexOf("to") + 2, -1);
+      println("Updating value to : " + newValue);
+      cspi.updateSPIFFS(varName, newValue);
+    }
+    println("\t\t ###leaving else part #### \n");
+  } else if (command.indexOf("readSPIFFS") != -1) {
+    cspi.readSPIFFS();
+  } else {
+    println("Unknown command {" + command + "}");
   }
 }
