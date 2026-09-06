@@ -56,7 +56,8 @@
 
 #define SAMPLE_RATE   16000   // Whisper's native rate; higher just wastes upload
 #define MAX_SECONDS   60      // hard stop, so a stuck detector cannot record forever
-#define MIN_RECORD_MS 10000UL // keep listening for at least ten seconds
+#define MIN_RECORD_MS 5000UL  // keep listening for at least five seconds
+#define BLUE_RESULT_MS 3000UL // show completion state for three seconds
 #define SILENCE_PEAK  300     // below this, treat the clip as silence
 #define HP_CUTOFF_HZ  120     // high-pass corner, removes DC and rumble
 #define MIC_GAIN      8       // digital gain applied after filtering
@@ -94,6 +95,11 @@ static bool            speechReady = false;
 static void light(uint8_t r, uint8_t g, uint8_t b) {
   rgb.setPixelColor(0, rgb.Color(r, g, b));
   rgb.show();
+}
+
+static void wifiLight() {
+  if (WiFi.status() == WL_CONNECTED) light(0, 255, 0);
+  else light(255, 0, 0);
 }
 
 #if ENABLE_LOCAL_WAKEWORD
@@ -285,7 +291,7 @@ static bool transcribe(String *text, bool manualTrigger) {
     // The 300 ms floor stops a quick tap producing a clip too short to use.
     // BOOT release ends only a manual recording. A wake-word recording must
     // continue independently of the button and use VAD silence instead.
-    if (manualTrigger && digitalRead(PIN_BUTTON) == HIGH && millis() - start > 300) break;
+    if (manualTrigger && digitalRead(PIN_BUTTON) == HIGH && millis() - start >= MIN_RECORD_MS) break;
 
     size_t n = mic.readBytes((char *)raw, sizeof raw);
     if (!n) { delay(1); continue; }
@@ -361,7 +367,7 @@ void setup() {
   Serial.println("\n\nSpeechToText - Groq Whisper");
   rgb.begin();
   rgb.setBrightness(RGB_BRIGHTNESS);
-  light(255, 0, 0);
+  light(0, 0, 0);
   pinMode(PIN_BUTTON, INPUT_PULLUP);           // BOOT reads LOW when pressed
 
   WiFi.mode(WIFI_STA);
@@ -370,10 +376,8 @@ void setup() {
   uint32_t wifiDeadline = millis() + 20000;
   while (WiFi.status() != WL_CONNECTED && millis() < wifiDeadline) { Serial.print("."); delay(300); }
   if (WiFi.status() == WL_CONNECTED) {
-    light(0, 255, 0);
     Serial.printf("\n[wifi] %s  rssi %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
   } else {
-    light(255, 0, 0);
     Serial.println("\n[wifi] connection failed");
   }
 
@@ -387,7 +391,7 @@ void setup() {
                   speechReady ? "local detector ready" : "local detector failed");
   }
 #endif
-  Serial.printf("\nRGB GPIO%d at %d/255 brightness. Say \"Hi ESP\", or hold BOOT; 3 seconds of silence ends recording.\n",
+  Serial.printf("\nRGB GPIO%d at %d/255 brightness. RGB idle=off; say \"Hi ESP\" to listen for 5 seconds minimum.\n",
                 RGB_DATA_PIN, RGB_BRIGHTNESS);
 }
 
@@ -420,14 +424,15 @@ void loop() {
 #endif
 
   String text;
-  light(0, 0, 255);
+  wifiLight();
   if (transcribe(&text, manualTrigger)) {
-    light(0, 255, 0);
     Serial.println("-------------------------------------------");
     Serial.printf("You said: %s\n", text.c_str());
     Serial.println("-------------------------------------------\n");
   }
-  if (WiFi.status() == WL_CONNECTED) light(0, 255, 0); else light(255, 0, 0);
+  light(0, 0, 255);
+  delay(BLUE_RESULT_MS);
+  light(0, 0, 0);
 
   while (digitalRead(PIN_BUTTON) == LOW) delay(10);            // wait for release
 #if ENABLE_LOCAL_WAKEWORD

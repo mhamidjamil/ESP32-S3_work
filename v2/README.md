@@ -17,10 +17,10 @@ The ESP32 chip can report its family, flash and PSRAM. It cannot report which PC
 
 `work/RGB+voice_groq` combines the existing INMP441 and Groq Whisper flow with RGB status and local ESP-SR wake detection:
 
-- red: Wi-Fi is unavailable
-- green: Wi-Fi is connected and idle
-- blue: recording or uploading
-- recording lasts at least ten seconds, then three seconds of detected silence ends it
+- idle: RGB is off
+- after wake, red means Wi-Fi is unavailable and green means Wi-Fi is connected
+- after recording stops, blue is shown for three seconds, then RGB turns off
+- recording lasts at least five seconds, then three seconds of detected silence ends it
 - a 60-second safety limit prevents an unattended recording from running forever
 - the bundled offline wake word is `Hi ESP`; it does not consume Groq quota while idle
 
