@@ -339,7 +339,7 @@ void setup() {
   delay(400);
   Serial.println("\n\nSpeechToText - Groq Whisper");
   rgb.begin();
-  rgb.setBrightness(64);
+  rgb.setBrightness(32);
   light(255, 0, 0);
   pinMode(PIN_BUTTON, INPUT_PULLUP);           // BOOT reads LOW when pressed
 
