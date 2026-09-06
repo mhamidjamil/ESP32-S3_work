@@ -1,3 +1,7 @@
 usefull_credentials.txt
 Uploaded_code
 Uploaded_code/Uploaded_code.ino
+# Local Wi-Fi and Groq credentials
+**/secrets.h
+
+**/build/
