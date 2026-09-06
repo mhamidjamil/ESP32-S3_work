@@ -55,7 +55,8 @@
 #include "secrets.h"          // SEED_WIFI_SSID, SEED_WIFI_PASS, SEED_GROQ_KEY
 
 #define SAMPLE_RATE   16000   // Whisper's native rate; higher just wastes upload
-#define MAX_SECONDS   15      // hard stop, so a stuck button cannot record forever
+#define MAX_SECONDS   60      // hard stop, so a stuck detector cannot record forever
+#define MIN_RECORD_MS 10000UL // keep listening for at least ten seconds
 #define SILENCE_PEAK  300     // below this, treat the clip as silence
 #define HP_CUTOFF_HZ  120     // high-pass corner, removes DC and rumble
 #define MIC_GAIN      8       // digital gain applied after filtering
@@ -246,7 +247,7 @@ static void writeWavHeader(uint8_t *h) {
 // ======================================================== 5. THE MAIN JOB ====
 // Records and uploads at the same time, then returns the transcript.
 // Recording runs until BOOT is released, or MAX_SECONDS, whichever is first.
-static bool transcribe(String *text) {
+static bool transcribe(String *text, bool manualTrigger) {
   if (!micOk) { Serial.println("[mic] not running"); return false; }
 
   // --- step 1: send the request headers (the socket is normally already open) ---
@@ -282,7 +283,9 @@ static bool transcribe(String *text) {
 
   while (ok && millis() - start < MAX_SECONDS * 1000UL) {
     // The 300 ms floor stops a quick tap producing a clip too short to use.
-    if (digitalRead(PIN_BUTTON) == HIGH && millis() - start > 300) break;
+    // BOOT release ends only a manual recording. A wake-word recording must
+    // continue independently of the button and use VAD silence instead.
+    if (manualTrigger && digitalRead(PIN_BUTTON) == HIGH && millis() - start > 300) break;
 
     size_t n = mic.readBytes((char *)raw, sizeof raw);
     if (!n) { delay(1); continue; }
@@ -306,7 +309,7 @@ static bool transcribe(String *text) {
     }
     if (blockPeak < SILENCE_PEAK) {
       if (!quietSince) quietSince = millis();
-      if (millis() - quietSince >= 3000 && millis() - start > 1200) break;
+      if (millis() - quietSince >= 3000 && millis() - start >= MIN_RECORD_MS) break;
     } else {
       quietSince = 0;
     }
@@ -399,6 +402,7 @@ void loop() {
   }
 
   bool trigger = false;
+  bool manualTrigger = false;
 #if ENABLE_LOCAL_WAKEWORD
   trigger = wakeDetected;
 #endif
@@ -406,6 +410,7 @@ void loop() {
   if (digitalRead(PIN_BUTTON) == LOW) {
     delay(30);
     trigger = digitalRead(PIN_BUTTON) == LOW;
+    manualTrigger = trigger;
   }
 #endif
   if (!trigger) { delay(10); return; }
@@ -416,7 +421,7 @@ void loop() {
 
   String text;
   light(0, 0, 255);
-  if (transcribe(&text)) {
+  if (transcribe(&text, manualTrigger)) {
     light(0, 255, 0);
     Serial.println("-------------------------------------------");
     Serial.printf("You said: %s\n", text.c_str());

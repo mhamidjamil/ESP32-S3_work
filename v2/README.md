@@ -20,7 +20,8 @@ The ESP32 chip can report its family, flash and PSRAM. It cannot report which PC
 - red: Wi-Fi is unavailable
 - green: Wi-Fi is connected and idle
 - blue: recording or uploading
-- three seconds of detected silence ends a recording
+- recording lasts at least ten seconds, then three seconds of detected silence ends it
+- a 60-second safety limit prevents an unattended recording from running forever
 - the bundled offline wake word is `Hi ESP`; it does not consume Groq quota while idle
 
 BOOT remains available as a manual fallback. The ESP-SR model is stored in flash, so compile this sketch with the `ESP SR 16M` partition scheme, `32MB` flash setting, and `OPI PSRAM`. The current sketch uses the bundled `Hi ESP` model. An exact `Jarvis` wake word requires replacing it with a custom WakeNet model; it is not something the board learns from one spoken example.
