@@ -23,7 +23,7 @@ The ESP32 chip can report its family, flash and PSRAM. It cannot report which PC
 - three seconds of detected silence ends a recording
 - the bundled offline wake word is `Hi ESP`; it does not consume Groq quota while idle
 
-BOOT remains available as a manual fallback. The ESP-SR model is stored in flash, so compile this sketch with the `ESP SR 16M` partition scheme and a 16 MB flash setting. The current sketch uses the bundled `Hi ESP` model. An exact `Jarvis` wake word requires replacing it with a custom WakeNet model; it is not something the board learns from one spoken example.
+BOOT remains available as a manual fallback. The ESP-SR model is stored in flash, so compile this sketch with the `ESP SR 16M` partition scheme, `32MB` flash setting, and `OPI PSRAM`. The current sketch uses the bundled `Hi ESP` model. An exact `Jarvis` wake word requires replacing it with a custom WakeNet model; it is not something the board learns from one spoken example.
 
 Copy `secrets.example.h` to `secrets.h`, fill in credentials, and compile with Espressif Arduino core 3.3.11. Select `ESP SR 16M` in the Arduino IDE partition menu. For GPIO48 use `-DBOARD_RGB_GPIO48`; GPIO38 is the default profile. RGB brightness is set to 32/255, half the previous firmware level.
 

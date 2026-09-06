@@ -39,9 +39,8 @@
 //  BOARD SETTINGS (Tools menu)
 // -----------------------------------------------------------------------------
 //    Board           : ESP32S3 Dev Module
-//    PSRAM           : DISABLED  - with PSRAM on, the I2S driver puts its
-//                      channel object in PSRAM, GDMA rejects it, and
-//                      mic.begin() fails with "I2S INIT FAILED".
+//    PSRAM           : OPI PSRAM - this board reports 8 MB PSRAM and ESP-SR
+//                      needs it for the wake-word audio models.
 //    USB CDC On Boot : Disabled for a CP2102/CH340 bridge port,
 //                      Enabled for the S3's native USB port.
 //                      Wrong choice = blank Serial Monitor.
